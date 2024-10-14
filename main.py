@@ -142,7 +142,7 @@ for epoch in range(num_epochs):
 
     for val_step, (context_x, context_y, mask_matrix, X_train, y_true) in enumerate(valid_dataloader):
         context_x, context_y, mask_matrix, X_train, y_true = context_x.to(device), context_y.to(device), mask_matrix.to(
-            device), X_train.to(device), y_true.to(device)  # 移动到GPU
+            device), X_train.to(device), y_true.to(device) 
 
         with torch.no_grad():
             outputs = model(context_x, context_y, mask_matrix, X_train)
