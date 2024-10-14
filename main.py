@@ -166,7 +166,7 @@ for epoch in range(num_epochs):
     # Early stop
     if val_loss_sum / len(valid_dataloader) < best_val_loss:
         best_val_loss = val_loss_sum / len(valid_dataloader)
-        patience_counter = 0  # 重置计数器
+        patience_counter = 0  
     else:
         patience_counter += 1
         if patience_counter >= patience:
