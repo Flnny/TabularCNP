@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import Dataset
 
 from datasets.dataloader import TabularCNPDataset
-from model.cMdeepfm import CDeepFM
+from model.cDeepFM import CDeepFM
 
 
 class ARTabularCNPCNPDataset(Dataset):
@@ -21,7 +21,7 @@ class ARTabularCNPCNPDataset(Dataset):
 
         model_framework = CDeepFM(encoder_sizes, mask_sizes, decoder_sizes, representation_size, num_embeddings,
                              embedding_dim, dense_features, sparse_features, hidden_units).to('cpu')
-        state_dict = torch.load('E:\postgraduate\TabularCNPsh_cDeepFM.pth', map_location=torch.device('cpu'))
+        state_dict = torch.load('TabularCNPsh_cDeepFM.pth', map_location=torch.device('cpu'))
         model_framework.load_state_dict(state_dict)
         self.model = model_framework
         self.dataset = TabularCNPDataset(data, data, mask_sizes, sparse_features, dense_features, target)

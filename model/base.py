@@ -37,6 +37,20 @@ class Dnn(nn.Module):
         return x
 
 
+class SimpleMLP(nn.Module):
+    def __init__(self, input_dim=34, output_dim=10, hidden_dim=128):
+        super(SimpleMLP, self).__init__()
+
+        self.fc1 = nn.Linear(input_dim, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+        self.fc3 = nn.Linear(hidden_dim, output_dim)
+
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+
 class WideDeep(nn.Module):
     def __init__(self, num_embeddings, embedding_dim, dense_features, sparse_features, hidden_units, dnn_dropout=0.):
         super(WideDeep, self).__init__()
@@ -93,7 +107,6 @@ class DeepFM(nn.Module):
         self.cate_fea_size = len(num_embeddings)
         self.nume_fea_size = len(dense_features) + 1
 
-        """FM"""
         if self.nume_fea_size != 0:
             self.fm_1st_order_dense = nn.Linear(self.nume_fea_size, 1)
         self.fm_1st_order_sparse_emb = nn.ModuleList([
@@ -114,7 +127,6 @@ class DeepFM(nn.Module):
 
         sparse_inputs = sparse_inputs.long()
 
-        """FM one"""
         fm_1st_sparse_res = [emb(sparse_inputs[:, i].unsqueeze(1)).view(-1, 1)
                              for i, emb in enumerate(self.fm_1st_order_sparse_emb)]
         fm_1st_sparse_res = torch.cat(fm_1st_sparse_res, dim=1)
@@ -126,7 +138,6 @@ class DeepFM(nn.Module):
         else:
             fm_1st_part = fm_1st_sparse_res
 
-        """FM two"""
         fm_2nd_order_res = [emb(sparse_inputs[:, i].unsqueeze(1)) for i, emb in enumerate(self.fm_2nd_order_sparse_emb)]
         fm_2nd_concat_1d = torch.cat(fm_2nd_order_res, dim=1)
 
@@ -151,147 +162,3 @@ class DeepFM(nn.Module):
         return outputs
 
 
-class BiInteractionLayer(nn.Module):
-    def __init__(self):
-        super(BiInteractionLayer, self).__init__()
-
-    def forward(self, embeddings):
-        sum_of_square = torch.sum(embeddings, dim=1) ** 2
-        square_of_sum = torch.sum(embeddings ** 2, dim=1)
-        bi_interaction = 0.5 * (sum_of_square - square_of_sum)
-        return bi_interaction
-
-class NFM(nn.Module):
-    def __init__(self, num_embeddings, embedding_dim, dense_features, sparse_features,
-                 hidden_units, dnn_dropout=0.):
-        super(NFM, self).__init__()
-        self.dense_feature_cols, self.sparse_feature_cols = dense_features, sparse_features
-
-        # embedding
-        self.embed_layers = nn.ModuleDict({
-            'embed_' + str(i): nn.Embedding(num_embeddings=num_embeddings[i], embedding_dim=embedding_dim)
-            for i, feat in enumerate(self.sparse_feature_cols)
-        })
-
-        # Bi-Interaction Layer
-        self.bi_interaction = BiInteractionLayer()
-
-        # DNN
-        input_size = embedding_dim + len(self.dense_feature_cols) + 1
-        hidden_units.insert(0, input_size)
-        self.mlp = nn.Sequential(
-            nn.Linear(hidden_units[0], hidden_units[1]),
-            nn.ReLU(),
-            nn.Dropout(dnn_dropout),
-            nn.Linear(hidden_units[1], hidden_units[2]),
-            nn.ReLU(),
-            nn.Dropout(dnn_dropout),
-            nn.Linear(hidden_units[2], 10)
-        )
-
-    def forward(self, target_x):
-        dense_input, sparse_inputs = target_x[:, :(len(self.dense_feature_cols) + 1)], target_x[:,
-                                                                                    (len(self.dense_feature_cols) + 1):]
-        sparse_inputs = sparse_inputs.long()
-
-        sparse_embeds = []
-        for i in range(sparse_inputs.shape[1]):
-            embed_key = 'embed_' + str(i)
-            if embed_key in self.embed_layers:
-                sparse_embeds.append(self.embed_layers[embed_key](sparse_inputs[:, i]))
-
-        sparse_embeds = torch.stack(sparse_embeds, dim=1)
-
-        bi_interaction_output = self.bi_interaction(sparse_embeds)
-
-        combined_input = torch.cat([dense_input, bi_interaction_output], axis=-1)
-
-        outputs = self.mlp(combined_input)
-
-        return outputs
-
-
-class SENet(nn.Module):
-    def __init__(self, field_size, reduction_ratio=3):
-        super(SENet, self).__init__()
-        reduced_size = int(max(1, field_size // reduction_ratio))
-        self.excitation = nn.Sequential(
-            nn.Linear(field_size, reduced_size),
-            nn.ReLU(),
-            nn.Linear(reduced_size, field_size),
-        )
-
-    def forward(self, embeddings):
-        Z = torch.mean(embeddings, dim=-1)
-        A = self.excitation(Z)
-        A = A.unsqueeze(-1)
-        return embeddings * A
-
-class BiInteractionPooling(nn.Module):
-    def __init__(self):
-        super(BiInteractionPooling, self).__init__()
-
-    def forward(self, embeddings):
-        sum_of_square = torch.sum(embeddings, dim=1) ** 2
-        square_of_sum = torch.sum(embeddings ** 2, dim=1)
-        bi_interaction = 0.5 * (sum_of_square - square_of_sum)
-        return bi_interaction
-
-
-class FiBiNET(nn.Module):
-    def __init__(self, num_embeddings, embedding_dim, dense_features, sparse_features,
-                 hidden_units, reduction_ratio=3):
-        super(FiBiNET, self).__init__()
-        self.dense_feature_cols, self.sparse_feature_cols = dense_features, sparse_features
-
-        # embedding
-        self.embed_layers = nn.ModuleDict({
-            'embed_' + str(i): nn.Embedding(num_embeddings=num_embeddings[i], embedding_dim=embedding_dim)
-            for i, feat in enumerate(self.sparse_feature_cols)
-        })
-
-        # SENet (Feature recalibration)
-        self.senet = SENet(field_size=len(self.sparse_feature_cols), reduction_ratio=reduction_ratio)
-
-        # Bi-Interaction Pooling
-        self.bi_pooling = BiInteractionPooling()
-
-        # DNN
-        input_size = len(self.dense_feature_cols) + embedding_dim + 1
-        hidden_units.insert(0, input_size)
-        self.dnn_network = nn.Sequential(
-            nn.Linear(hidden_units[0], hidden_units[1]),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(hidden_units[1], hidden_units[2]),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(hidden_units[2], 10)
-        )
-
-    def forward(self, target_x):
-        dense_input, sparse_inputs = target_x[:, :(len(self.dense_feature_cols) + 1)], target_x[:,
-                                                                                    (len(self.dense_feature_cols) + 1):]
-        sparse_inputs = sparse_inputs.long()
-
-        # embedding
-        sparse_embeds = []
-        for i in range(sparse_inputs.shape[1]):
-            embed_key = 'embed_' + str(i)
-            if embed_key in self.embed_layers:
-                sparse_embeds.append(self.embed_layers[embed_key](sparse_inputs[:, i]))
-
-        sparse_embeds = torch.stack(sparse_embeds, dim=1)
-
-        # SENet
-        recalibrated_embeds = self.senet(sparse_embeds)
-
-        # Bi-Interaction Pooling
-        bi_interaction = self.bi_pooling(recalibrated_embeds)
-
-        # Bi-Interaction
-        combined_input = torch.cat([dense_input, bi_interaction], dim=-1)
-
-        # DNN
-        outputs = self.dnn_network(combined_input)
-        return outputs
