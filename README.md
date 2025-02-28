@@ -20,6 +20,7 @@ TabularCNP/                          # Root directory of the project
 │   ├── cDeepFM.py                   # DeepFM* model in the TabularCNP framework 
 │   ├── cDeepFM_at.py                # DeepFM* with Attention as the aggregation function 
 │   ├── cDeepFM_deepest.py           # DeepFM* with DeepSet as the aggregation function 
+│   ├──cWDL.py                       # CTabNet* model in the TabularCNP framework 
 │   └── cWDL.py                      # CWDL* model in the TabularCNP framework 
 │
 ├── tools/                           
