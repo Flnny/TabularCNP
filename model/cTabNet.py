@@ -61,7 +61,7 @@ class DeterministicDecoder(nn.Module):
         self.initial_bn = BatchNorm1d(self.input_dim, momentum=0.01)
         group_attention_matrix = torch.eye(self.input_dim).to(device)
         self.encoder = TabNetEncoder(
-            input_dim=input_dim,
+            input_dim=self.input_dim,
             output_dim=output_dim,
             n_d=n_d,
             n_a=n_a,
