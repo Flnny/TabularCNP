@@ -99,7 +99,7 @@ class DeterministicDecoder(nn.Module):
                 out.append(task_mapping(res))
         else:
             out = self.final_mapping(res)
-        return out, M_loss
+        return out
 
 
 class CTabNet(nn.Module):
