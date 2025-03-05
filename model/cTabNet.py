@@ -107,7 +107,7 @@ class CTabNet(nn.Module):
                  sparse_features, device, hidden_units=[256, 128, 64], dnn_dropout=0.):
         super(CTabNet, self).__init__()
         self._encoder = DeterministicEncoder(encoder_sizes, mask_sizes)
-        self._decoder = DeterministicDecoder(input_dim=34, output_dim=1, representation_size=representation_size,
+        self._decoder = DeterministicDecoder(input_dim=encoder_sizes[0]-1, output_dim=1, representation_size=representation_size,
                                              device=device)
 
     def forward(self, context_x, context_y, mask_matrix, target_x, target_y=None):
